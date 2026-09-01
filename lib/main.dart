@@ -46,9 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   Future<void> _login() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
@@ -77,28 +75,18 @@ class _LoginScreenState extends State<LoginScreen> {
         final errorData = jsonDecode(response.body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorData['errore'] ?? 'Credenziali non valide'),
-              backgroundColor: Colors.redAccent,
-            ),
+            SnackBar(content: Text(errorData['errore'] ?? 'Credenziali non valide'), backgroundColor: Colors.redAccent),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Impossibile connettersi al server.'),
-            backgroundColor: Colors.redAccent,
-          ),
+          const SnackBar(content: Text('Impossibile connettersi al server.'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -114,42 +102,115 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.movie, size: 80, color: Colors.redAccent),
               const SizedBox(height: 24),
-              const Text(
-                "Piattaforma Film",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
+              const Text("Piattaforma Film", textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text(
-                "Accedi per continuare",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
+              const Text("Accedi per continuare", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-              ),
+              TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
+              TextField(controller: _passwordController, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        "Accedi",
-                        style: TextStyle(fontSize: 18, color: Colors.white),
-                      ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Accedi", style: TextStyle(fontSize: 18, color: Colors.white)),
+              ),
+              const SizedBox(height: 16),
+              // NUOVO BOTTONE: Porta alla schermata di registrazione
+              TextButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
+                },
+                child: const Text("Non hai un account? Registrati", style: TextStyle(color: Colors.redAccent)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// NUOVA SCHERMATA: Registrazione
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _register() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        // NOTA: Assicurati che l'URL del tuo backend per la registrazione sia /api/register
+        Uri.parse('http://localhost:5000/api/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': _emailController.text,
+          'password': _passwordController.text,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Registrazione completata! Ora puoi accedere.'), backgroundColor: Colors.green),
+          );
+          Navigator.pop(context); // Torna indietro alla schermata di Login
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorData['errore'] ?? 'Errore durante la registrazione'), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossibile connettersi al server.'), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Registrazione'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Icon(Icons.person_add, size: 80, color: Colors.redAccent),
+              const SizedBox(height: 24),
+              const Text("Crea un account", textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 32),
+              TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 16),
+              TextField(controller: _passwordController, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _register,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Registrati", style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
             ],
           ),
@@ -173,7 +234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchFilm();
+    _fetchFilm(); 
   }
 
   Future<void> _fetchFilm() async {
@@ -196,7 +257,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint("Errore di connessione: $e");
     }
   }
 
@@ -214,16 +274,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         body: jsonEncode({'visto': !isVistoAttuale}),
       );
 
-      if (response.statusCode == 200) {
-        _fetchFilm();
-      }
+      if (response.statusCode == 200) _fetchFilm();
     } catch (e) {
-      // Errore ignorato in questa versione base per semplicità
+      // Ignorato per brevità
     }
   }
 
   Future<void> _aggiungiFilm(String titolo) async {
-    if (titolo.trim().isEmpty) return;
+    if (titolo.trim().isEmpty) return; 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token');
@@ -234,18 +292,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'testo': titolo}),
+        body: jsonEncode({'testo': titolo}), 
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _fetchFilm();
-      }
-    } catch (e) {
-      // Errore ignorato
-    }
+      if (response.statusCode == 200 || response.statusCode == 201) _fetchFilm(); 
+    // ignore: empty_catches
+    } catch (e) {}
   }
 
-  // NUOVA FUNZIONE: Elimina il film dal database
   Future<void> _eliminaFilm(int id) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -256,19 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        // Se la chiamata al server fallisce, ricarichiamo la lista
-        // così il film cancellato localmente ricompare
-        _fetchFilm();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Errore durante l\'eliminazione.'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      }
+      if (response.statusCode != 200 && response.statusCode != 204) _fetchFilm();
     } catch (e) {
       _fetchFilm();
     }
@@ -276,38 +318,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _mostraDialogAggiunta() {
     final TextEditingController nuovoFilmController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF27272A),
+          backgroundColor: const Color(0xFF27272A), 
           title: const Text('Aggiungi un nuovo film'),
-          content: TextField(
-            controller: nuovoFilmController,
-            decoration: const InputDecoration(hintText: 'Es. Interstellar'),
-            autofocus: true,
-          ),
+          content: TextField(controller: nuovoFilmController, decoration: const InputDecoration(hintText: 'Es. Interstellar'), autofocus: true),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Annulla',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                _aggiungiFilm(nuovoFilmController.text);
+                Navigator.pop(context); 
+                _aggiungiFilm(nuovoFilmController.text); 
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
-              child: const Text(
-                'Aggiungi',
-                style: TextStyle(color: Colors.white),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: const Text('Aggiungi', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -317,12 +343,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwt_token');
+    await prefs.remove('jwt_token'); 
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
     }
   }
 
@@ -332,25 +355,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('I Miei Film'),
         backgroundColor: const Color(0xFF27272A),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: _logout,
-            tooltip: 'Esci',
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: _logout, tooltip: 'Esci')],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.redAccent),
-            )
+          ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
           : _film.isEmpty
-          ? const Center(
-              child: Text(
-                "Nessun film trovato.",
-                style: TextStyle(fontSize: 18),
-              ),
-            )
+          ? const Center(child: Text("Nessun film trovato.", style: TextStyle(fontSize: 18)))
           : ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: _film.length,
@@ -358,30 +368,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final film = _film[index];
                 final isVisto = film['visto'] != null;
 
-                // NUOVO WIDGET: Il Dismissible permette lo swipe a sinistra
                 return Dismissible(
-                  key: Key(
-                    film['id'].toString(),
-                  ), // Flutter ha bisogno di una chiave unica per animare lo swipe
-                  direction: DismissDirection
-                      .endToStart, // Scorriamo da destra a sinistra
-                  // Cosa appare "sotto" la card mentre facciamo lo swipe:
+                  key: Key(film['id'].toString()), 
+                  direction: DismissDirection.endToStart, 
                   background: Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(
-                      Icons.delete,
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                    child: const Icon(Icons.delete, color: Colors.white, size: 30),
                   ),
-
-                  // Finestrella di conferma prima di cancellare
                   confirmDismiss: (direction) async {
                     return await showDialog(
                       context: context,
@@ -389,70 +385,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         return AlertDialog(
                           backgroundColor: const Color(0xFF27272A),
                           title: const Text("Conferma eliminazione"),
-                          content: Text(
-                            "Vuoi davvero eliminare '${film['testo']}'?",
-                          ),
+                          content: Text("Vuoi davvero eliminare '${film['testo']}'?"),
                           actions: <Widget>[
-                            TextButton(
-                              onPressed: () => Navigator.of(
-                                context,
-                              ).pop(false), // Torna indietro
-                              child: const Text(
-                                "Annulla",
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
+                            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Annulla", style: TextStyle(color: Colors.grey))),
                             ElevatedButton(
-                              onPressed: () => Navigator.of(
-                                context,
-                              ).pop(true), // Conferma l'azione
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.redAccent,
-                              ),
-                              child: const Text(
-                                "Elimina",
-                                style: TextStyle(color: Colors.white),
-                              ),
+                              onPressed: () => Navigator.of(context).pop(true),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                              child: const Text("Elimina", style: TextStyle(color: Colors.white)),
                             ),
                           ],
                         );
                       },
                     );
                   },
-
-                  // Cosa succede quando confermiamo l'eliminazione
                   onDismissed: (direction) {
-                    setState(() {
-                      _film.removeAt(index); // Sparisce subito dall'interfaccia
-                    });
-                    _eliminaFilm(
-                      film['id'],
-                    ); // Parte la richiesta al Server Node.js
+                    setState(() => _film.removeAt(index));
+                    _eliminaFilm(film['id']); 
                   },
-
                   child: Card(
                     color: const Color(0xFF27272A),
                     margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     child: ListTile(
                       title: Text(
                         film['testo'] ?? 'Senza titolo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: isVisto ? Colors.grey : Colors.white,
-                        ),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: isVisto ? Colors.grey : Colors.white),
                       ),
                       trailing: IconButton(
-                        icon: Icon(
-                          isVisto ? Icons.visibility : Icons.visibility_off,
-                          color: isVisto ? Colors.green : Colors.grey,
-                        ),
-                        onPressed: () {
-                          _toggleVisto(film['id'], isVisto);
-                        },
+                        icon: Icon(isVisto ? Icons.visibility : Icons.visibility_off, color: isVisto ? Colors.green : Colors.grey),
+                        onPressed: () => _toggleVisto(film['id'], isVisto),
                       ),
                     ),
                   ),
