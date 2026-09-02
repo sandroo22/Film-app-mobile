@@ -15,7 +15,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> _film = [];
   bool _isLoading = true;
 
-  // NUOVO: Variabili per gestire la ricerca
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -69,7 +68,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
       if (response.statusCode == 200) _fetchFilm();
-    // ignore: empty_catches
+    } catch (e) {}
+  }
+
+  // NUOVA FUNZIONE: Aggiorna il titolo del film nel database
+  Future<void> _aggiornaTitoloFilm(int id, String nuovoTitolo) async {
+    if (nuovoTitolo.trim().isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+
+      final response = await http.put(
+        Uri.parse('http://localhost:5000/api/film/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'testo': nuovoTitolo}),
+      );
+
+      if (response.statusCode == 200) _fetchFilm();
     } catch (e) {}
   }
 
@@ -90,11 +108,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         _fetchFilm();
-        // Svuotiamo la ricerca quando aggiungiamo un nuovo film
         _searchController.clear();
         setState(() => _searchQuery = '');
       }
-    // ignore: empty_catches
     } catch (e) {}
   }
 
@@ -108,9 +124,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (response.statusCode != 200 && response.statusCode != 204)
-        // ignore: curly_braces_in_flow_control_structures
+      if (response.statusCode != 200 && response.statusCode != 204) {
         _fetchFilm();
+      }
     } catch (e) {
       _fetchFilm();
     }
@@ -149,6 +165,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Aggiungi',
                 style: TextStyle(color: Colors.white),
               ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // NUOVO DIALOG: Finestra per modificare il titolo del film
+  void _mostraDialogModifica(int id, String titoloCorrente) {
+    // Inizializziamo il controller con il titolo attuale!
+    final TextEditingController modificaController = TextEditingController(
+      text: titoloCorrente,
+    );
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF27272A),
+          title: const Text('Modifica film'),
+          content: TextField(
+            controller: modificaController,
+            decoration: const InputDecoration(hintText: 'Nuovo titolo'),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Annulla',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _aggiornaTitoloFilm(id, modificaController.text);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+              ), // Blu per distinguere la modifica
+              child: const Text('Salva', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -212,6 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Icon(Icons.delete, color: Colors.white, size: 30),
             ),
             confirmDismiss: (direction) async {
+              // (Codice del dialog di eliminazione invariato)
               return await showDialog(
                 context: context,
                 builder: (BuildContext context) {
@@ -261,12 +319,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: isVisto ? Colors.grey : Colors.white,
                   ),
                 ),
-                trailing: IconButton(
-                  icon: Icon(
-                    isVisto ? Icons.visibility : Icons.visibility_off,
-                    color: isVisto ? Colors.green : Colors.grey,
-                  ),
-                  onPressed: () => _toggleVisto(film['id'], isVisto),
+                // NUOVO ELEMENTO: Un Row per mettere affiancati l'icona Matita e l'icona Occhio
+                trailing: Row(
+                  mainAxisSize:
+                      MainAxisSize.min, // Occupa solo lo spazio necessario
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                      onPressed: () => _mostraDialogModifica(
+                        film['id'],
+                        film['testo'] ?? '',
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        isVisto ? Icons.visibility : Icons.visibility_off,
+                        color: isVisto ? Colors.green : Colors.grey,
+                      ),
+                      onPressed: () => _toggleVisto(film['id'], isVisto),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -278,13 +350,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. PRIMO FILTRO: Ricerca testuale
     final filmFiltratiPerRicerca = _film.where((f) {
       final titolo = (f['testo'] ?? '').toString().toLowerCase();
       return titolo.contains(_searchQuery.toLowerCase());
     }).toList();
 
-    // 2. SECONDO FILTRO: Separiamo i film trovati tra Visti e Da Vedere per i Tab
     final filmDaVedere = filmFiltratiPerRicerca
         .where((f) => f['visto'] == null || f['visto'] == false)
         .toList();
@@ -318,7 +388,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         body: Column(
           children: [
-            // NUOVO ELEMENTO: La barra di ricerca
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: TextField(
@@ -331,7 +400,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 decoration: InputDecoration(
                   hintText: 'Cerca un film...',
                   prefixIcon: const Icon(Icons.search, color: Colors.redAccent),
-                  // Mostriamo la "X" per pulire la ricerca solo se c'è del testo scritto
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, color: Colors.grey),
@@ -344,7 +412,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
-            // La lista dei film occupa lo spazio rimanente
             Expanded(
               child: _isLoading
                   ? const Center(
