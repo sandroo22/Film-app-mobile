@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import 'dashboard_screen.dart';
-import 'register_screen.dart';
+import 'dashboard_screen.dart'; 
+import 'register_screen.dart';  
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,30 +14,46 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  TextEditingController? _emailController; // Verrà gestito dal widget Autocomplete
   bool _isLoading = false;
+  
+  // Lista che conterrà le email suggerite
+  List<String> _emailSalvate = [];
 
   @override
   void initState() {
     super.initState();
-    // Appena si apre la schermata, proviamo a caricare l'email salvata
-    _caricaEmailSalvata();
+    _caricaEmailSalvate();
   }
 
-  // NUOVA FUNZIONE: Carica l'email dalla memoria del telefono
-  Future<void> _caricaEmailSalvata() async {
+  Future<void> _caricaEmailSalvate() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('saved_email');
-
-    if (savedEmail != null && savedEmail.isNotEmpty) {
-      setState(() {
-        _emailController.text = savedEmail;
-      });
+    
+    // Recuperiamo la lista di email (se esiste)
+    List<String> emails = prefs.getStringList('saved_emails_list') ?? [];
+    
+    // Recuperiamo anche la vecchia email singola (se avevi fatto il test di prima), per non perderla
+    final oldEmail = prefs.getString('saved_email');
+    if (oldEmail != null && oldEmail.isNotEmpty && !emails.contains(oldEmail)) {
+      emails.add(oldEmail);
+      await prefs.setStringList('saved_emails_list', emails);
+      await prefs.remove('saved_email'); // Puliamo la vecchia variabile
     }
+
+    setState(() {
+      _emailSalvate = emails;
+    });
   }
 
   Future<void> _login() async {
+    if (_emailController == null || _emailController!.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inserisci un\'email valida'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -45,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Uri.parse('http://localhost:5000/api/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': _emailController.text,
+          'email': _emailController!.text,
           'password': _passwordController.text,
         }),
       );
@@ -56,9 +72,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', token);
-
-        // NUOVA RIGA: Salviamo l'email usata per il prossimo accesso!
-        await prefs.setString('saved_email', _emailController.text);
+        
+        // Salviamo la nuova email nella lista dei suggerimenti (se non c'è già)
+        final emailUsata = _emailController!.text.trim();
+        if (!_emailSalvate.contains(emailUsata)) {
+          _emailSalvate.add(emailUsata);
+          await prefs.setStringList('saved_emails_list', _emailSalvate);
+        }
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -70,20 +90,14 @@ class _LoginScreenState extends State<LoginScreen> {
         final errorData = jsonDecode(response.body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorData['errore'] ?? 'Credenziali non valide'),
-              backgroundColor: Colors.redAccent,
-            ),
+            SnackBar(content: Text(errorData['errore'] ?? 'Credenziali non valide'), backgroundColor: Colors.redAccent),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Impossibile connettersi al server.'),
-            backgroundColor: Colors.redAccent,
-          ),
+          const SnackBar(content: Text('Impossibile connettersi al server.'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -103,57 +117,76 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.movie, size: 80, color: Colors.redAccent),
               const SizedBox(height: 24),
-              const Text(
-                "Piattaforma Film",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
+              const Text("Piattaforma Film", textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text(
-                "Accedi per continuare",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
+              const Text("Accedi per continuare", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
+              
+              // WIDGET AUTOCOMPLETE (Effetto tendina suggerimenti)
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  // Se il campo è vuoto, mostriamo tutte le email salvate
+                  if (textEditingValue.text.isEmpty) {
+                    return _emailSalvate;
+                  }
+                  // Altrimenti filtriamo in base a cosa sta scrivendo l'utente
+                  return _emailSalvate.where((email) => email.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                },
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  _emailController = controller; // Colleghiamo il controller
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    keyboardType: TextInputType.emailAddress,
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      color: const Color(0xFF27272A), // Sfondo scuro come il resto dell'app
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 150), 
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final option = options.elementAt(index);
+                            return ListTile(
+                              leading: const Icon(Icons.history, color: Colors.grey, size: 20),
+                              title: Text(option, style: const TextStyle(color: Colors.white)),
+                              onTap: () => onSelected(option), // Quando clicchi, compila il campo!
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
+
               const SizedBox(height: 16),
               TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
+                controller: _passwordController, 
+                decoration: const InputDecoration(labelText: 'Password'), 
+                obscureText: true
               ),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        "Accedi",
-                        style: TextStyle(fontSize: 18, color: Colors.white),
-                      ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Accedi", style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RegisterScreen(),
-                    ),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
                 },
-                child: const Text(
-                  "Non hai un account? Registrati",
-                  style: TextStyle(color: Colors.redAccent),
-                ),
+                child: const Text("Non hai un account? Registrati", style: TextStyle(color: Colors.redAccent)),
               ),
             ],
           ),
