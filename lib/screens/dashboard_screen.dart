@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'login_screen.dart';
+import 'film_detail_screen.dart'; // Importiamo la nuova schermata di dettaglio!
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -71,7 +72,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {}
   }
 
-  // NUOVA FUNZIONE: Aggiorna il titolo del film nel database
   Future<void> _aggiornaTitoloFilm(int id, String nuovoTitolo) async {
     if (nuovoTitolo.trim().isEmpty) return;
     try {
@@ -124,9 +124,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (response.statusCode != 200 && response.statusCode != 204) {
+      if (response.statusCode != 200 && response.statusCode != 204)
+        // ignore: curly_braces_in_flow_control_structures
         _fetchFilm();
-      }
     } catch (e) {
       _fetchFilm();
     }
@@ -172,9 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // NUOVO DIALOG: Finestra per modificare il titolo del film
   void _mostraDialogModifica(int id, String titoloCorrente) {
-    // Inizializziamo il controller con il titolo attuale!
     final TextEditingController modificaController = TextEditingController(
       text: titoloCorrente,
     );
@@ -204,7 +202,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueAccent,
-              ), // Blu per distinguere la modifica
+              ),
               child: const Text('Salva', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -269,7 +267,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Icon(Icons.delete, color: Colors.white, size: 30),
             ),
             confirmDismiss: (direction) async {
-              // (Codice del dialog di eliminazione invariato)
               return await showDialog(
                 context: context,
                 builder: (BuildContext context) {
@@ -311,6 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ListTile(
+                // Rimosso l'onTap da qui!
                 title: Text(
                   film['testo'] ?? 'Senza titolo',
                   style: TextStyle(
@@ -319,23 +317,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: isVisto ? Colors.grey : Colors.white,
                   ),
                 ),
-                // NUOVO ELEMENTO: Un Row per mettere affiancati l'icona Matita e l'icona Occhio
                 trailing: Row(
-                  mainAxisSize:
-                      MainAxisSize.min, // Occupa solo lo spazio necessario
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    // 1. NUOVO BOTTONE: Info (Dettagli)
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, color: Color.fromARGB(255, 255, 7, 7)),
+                      tooltip: 'Dettagli',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FilmDetailScreen(film: film),
+                          ),
+                        );
+                      },
+                    ),
+                    // 2. BOTTONE: Modifica
                     IconButton(
                       icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                      tooltip: 'Modifica titolo',
                       onPressed: () => _mostraDialogModifica(
                         film['id'],
                         film['testo'] ?? '',
                       ),
                     ),
+                    // 3. BOTTONE: Visto/Non Visto
                     IconButton(
                       icon: Icon(
                         isVisto ? Icons.visibility : Icons.visibility_off,
                         color: isVisto ? Colors.green : Colors.grey,
                       ),
+                      tooltip: isVisto ? 'Segna da vedere' : 'Segna come visto',
                       onPressed: () => _toggleVisto(film['id'], isVisto),
                     ),
                   ],
