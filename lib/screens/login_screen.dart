@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import 'dashboard_screen.dart'; 
-import 'register_screen.dart';  
+import 'dashboard_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,12 +15,11 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
-  TextEditingController? _emailController; 
+  TextEditingController? _emailController;
   bool _isLoading = false;
-  
-  // STEP 1: Variabile per la visibilità della password
+
   bool _isPasswordVisible = false;
-  
+
   List<String> _emailSalvate = [];
 
   @override
@@ -32,12 +31,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _caricaEmailSalvate() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> emails = prefs.getStringList('saved_emails_list') ?? [];
-    
+
     final oldEmail = prefs.getString('saved_email');
     if (oldEmail != null && oldEmail.isNotEmpty && !emails.contains(oldEmail)) {
       emails.add(oldEmail);
       await prefs.setStringList('saved_emails_list', emails);
-      await prefs.remove('saved_email'); 
+      await prefs.remove('saved_email');
     }
 
     setState(() {
@@ -48,7 +47,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (_emailController == null || _emailController!.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inserisci un\'email valida'), backgroundColor: Colors.redAccent),
+        const SnackBar(
+          content: Text('Inserisci un\'email valida'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
@@ -71,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', token);
-        
+
         final emailUsata = _emailController!.text.trim();
         if (!_emailSalvate.contains(emailUsata)) {
           _emailSalvate.add(emailUsata);
@@ -88,19 +90,36 @@ class _LoginScreenState extends State<LoginScreen> {
         final errorData = jsonDecode(response.body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorData['errore'] ?? 'Credenziali non valide'), backgroundColor: Colors.redAccent),
+            SnackBar(
+              content: Text(errorData['errore'] ?? 'Credenziali non valide'),
+              backgroundColor: Colors.redAccent,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossibile connettersi al server.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+            content: Text('Impossibile connettersi al server.'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _passwordDimenticata() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Funzionalità in arrivo! Presto potrai recuperare la password via email.',
+        ),
+        backgroundColor: Colors.blueAccent,
+      ),
+    );
   }
 
   @override
@@ -115,34 +134,50 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.movie, size: 80, color: Colors.redAccent),
               const SizedBox(height: 24),
-              const Text("Piattaforma Film", textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const Text(
+                "Piattaforma Film",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
-              const Text("Accedi per continuare", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+              const Text(
+                "Accedi per continuare",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
               const SizedBox(height: 32),
-              
+
               Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   if (textEditingValue.text.isEmpty) return _emailSalvate;
-                  return _emailSalvate.where((email) => email.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-                },
-                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                  _emailController = controller; 
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
+                  return _emailSalvate.where(
+                    (email) => email.toLowerCase().contains(
+                      textEditingValue.text.toLowerCase(),
+                    ),
                   );
                 },
+                fieldViewBuilder:
+                    (context, controller, focusNode, onFieldSubmitted) {
+                      _emailController = controller;
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          hintText: 'Email',
+                          prefixIcon: Icon(Icons.email, color: Colors.grey),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      );
+                    },
                 optionsViewBuilder: (context, onSelected, options) {
                   return Align(
                     alignment: Alignment.topLeft,
                     child: Material(
                       elevation: 4.0,
-                      color: const Color(0xFF27272A), 
+                      color: const Color(0xFF27272A),
                       borderRadius: BorderRadius.circular(8),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 150), 
+                        constraints: const BoxConstraints(maxHeight: 150),
                         child: ListView.builder(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
@@ -150,9 +185,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           itemBuilder: (context, index) {
                             final option = options.elementAt(index);
                             return ListTile(
-                              leading: const Icon(Icons.history, color: Colors.grey, size: 20),
-                              title: Text(option, style: const TextStyle(color: Colors.white)),
-                              onTap: () => onSelected(option), 
+                              leading: const Icon(
+                                Icons.history,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                              title: Text(
+                                option,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              onTap: () => onSelected(option),
                             );
                           },
                         ),
@@ -163,15 +205,19 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 16),
-              
+
+              // CAMPO PASSWORD
               TextField(
-                controller: _passwordController, 
-                obscureText: !_isPasswordVisible, 
+                controller: _passwordController,
+                obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  hintText: 'Password',
+                  prefixIcon: const Icon(Icons.lock, color: Colors.grey),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                       color: Colors.grey,
                     ),
                     onPressed: () {
@@ -180,22 +226,50 @@ class _LoginScreenState extends State<LoginScreen> {
                       });
                     },
                   ),
-                ), 
+                ),
               ),
-              
-              const SizedBox(height: 32),
-              
+
+              // LINK PASSWORD DIMENTICATA
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _passwordDimenticata,
+                  child: const Text(
+                    'Password dimenticata?',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Accedi", style: TextStyle(fontSize: 18, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "Accedi",
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RegisterScreen(),
+                    ),
+                  );
                 },
-                child: const Text("Non hai un account? Registrati", style: TextStyle(color: Colors.redAccent)),
+                child: const Text(
+                  "Non hai un account? Registrati",
+                  style: TextStyle(color: Colors.redAccent),
+                ),
               ),
             ],
           ),
