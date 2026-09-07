@@ -15,10 +15,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
-  TextEditingController? _emailController; // Verrà gestito dal widget Autocomplete
+  TextEditingController? _emailController; 
   bool _isLoading = false;
   
-  // Lista che conterrà le email suggerite
+  // STEP 1: Variabile per la visibilità della password
+  bool _isPasswordVisible = false;
+  
   List<String> _emailSalvate = [];
 
   @override
@@ -29,16 +31,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _caricaEmailSalvate() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // Recuperiamo la lista di email (se esiste)
     List<String> emails = prefs.getStringList('saved_emails_list') ?? [];
     
-    // Recuperiamo anche la vecchia email singola (se avevi fatto il test di prima), per non perderla
     final oldEmail = prefs.getString('saved_email');
     if (oldEmail != null && oldEmail.isNotEmpty && !emails.contains(oldEmail)) {
       emails.add(oldEmail);
       await prefs.setStringList('saved_emails_list', emails);
-      await prefs.remove('saved_email'); // Puliamo la vecchia variabile
+      await prefs.remove('saved_email'); 
     }
 
     setState(() {
@@ -73,7 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', token);
         
-        // Salviamo la nuova email nella lista dei suggerimenti (se non c'è già)
         final emailUsata = _emailController!.text.trim();
         if (!_emailSalvate.contains(emailUsata)) {
           _emailSalvate.add(emailUsata);
@@ -122,18 +120,13 @@ class _LoginScreenState extends State<LoginScreen> {
               const Text("Accedi per continuare", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
               
-              // WIDGET AUTOCOMPLETE (Effetto tendina suggerimenti)
               Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
-                  // Se il campo è vuoto, mostriamo tutte le email salvate
-                  if (textEditingValue.text.isEmpty) {
-                    return _emailSalvate;
-                  }
-                  // Altrimenti filtriamo in base a cosa sta scrivendo l'utente
+                  if (textEditingValue.text.isEmpty) return _emailSalvate;
                   return _emailSalvate.where((email) => email.toLowerCase().contains(textEditingValue.text.toLowerCase()));
                 },
                 fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                  _emailController = controller; // Colleghiamo il controller
+                  _emailController = controller; 
                   return TextField(
                     controller: controller,
                     focusNode: focusNode,
@@ -146,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.topLeft,
                     child: Material(
                       elevation: 4.0,
-                      color: const Color(0xFF27272A), // Sfondo scuro come il resto dell'app
+                      color: const Color(0xFF27272A), 
                       borderRadius: BorderRadius.circular(8),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxHeight: 150), 
@@ -159,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             return ListTile(
                               leading: const Icon(Icons.history, color: Colors.grey, size: 20),
                               title: Text(option, style: const TextStyle(color: Colors.white)),
-                              onTap: () => onSelected(option), // Quando clicchi, compila il campo!
+                              onTap: () => onSelected(option), 
                             );
                           },
                         ),
@@ -170,12 +163,29 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 16),
+              
+              // STEP 1: CAMPO PASSWORD CON OCCHIETTO
               TextField(
                 controller: _passwordController, 
-                decoration: const InputDecoration(labelText: 'Password'), 
-                obscureText: true
+                obscureText: !_isPasswordVisible, 
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
+                ), 
               ),
+              
               const SizedBox(height: 32),
+              
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16)),
