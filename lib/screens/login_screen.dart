@@ -164,7 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
               
-              // STEP 1: CAMPO PASSWORD CON OCCHIETTO
               TextField(
                 controller: _passwordController, 
                 obscureText: !_isPasswordVisible, 
