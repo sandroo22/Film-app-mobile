@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-
 import 'dashboard_screen.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -111,14 +111,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // MODIFICATO QUI: Ora naviga alla nuova schermata
   void _passwordDimenticata() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Funzionalità in arrivo! Presto potrai recuperare la password via email.',
-        ),
-        backgroundColor: Colors.blueAccent,
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
     );
   }
 
