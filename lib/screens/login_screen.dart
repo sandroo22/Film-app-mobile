@@ -111,7 +111,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // MODIFICATO QUI: Ora naviga alla nuova schermata
   void _passwordDimenticata() {
     Navigator.push(
       context,
@@ -253,7 +252,39 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(fontSize: 18, color: Colors.white),
                       ),
               ),
+              
+              const SizedBox(height: 24),
+              
+              // STEP 3: SEZIONE LOGIN SOCIAL
+              const Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text("OPPURE", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey)),
+                ],
+              ),
+              
+              const SizedBox(height: 24),
+              
+              OutlinedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Integrazione Google in arrivo!'), backgroundColor: Colors.blueAccent),
+                  );
+                },
+                icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.white),
+                label: const Text("Accedi con Google", style: TextStyle(color: Colors.white, fontSize: 16)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: const BorderSide(color: Colors.grey),
+                ),
+              ),
+
               const SizedBox(height: 16),
+
               TextButton(
                 onPressed: () {
                   Navigator.push(
