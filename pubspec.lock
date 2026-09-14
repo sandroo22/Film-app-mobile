@@ -98,10 +98,17 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_secure_storage
+<<<<<<< HEAD
       sha256: "2670c2a81a032080e779c015f4f775373605c4a364643ed371e78dea7781822c"
       url: "https://pub.dev"
     source: hosted
     version: "10.3.2"
+=======
+      sha256: "7686b1d6a29985dcbb808c59518226e603e3bfa7c0ddfd1a0d00e4cda77c868e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "10.3.1"
+>>>>>>> @{-1}
   flutter_secure_storage_darwin:
     dependency: transitive
     description:
@@ -122,10 +129,17 @@ packages:
     dependency: transitive
     description:
       name: flutter_secure_storage_platform_interface
+<<<<<<< HEAD
       sha256: "4bc033841169d07f690d46d89dbc3f5305b6562820822445384c82e0866e2719"
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+=======
+      sha256: "788060052712555182aba55ecb5f8b6e5cb9cfe8f776c83249a61fe3ce877db4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3"
+>>>>>>> @{-1}
   flutter_secure_storage_web:
     dependency: transitive
     description:
