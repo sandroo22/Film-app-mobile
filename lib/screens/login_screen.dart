@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
+import 'dart:async';
 import 'dashboard_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -30,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _storage = const FlutterSecureStorage();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  StreamSubscription? _googleAuthSubscription;
 
   @override
   void initState() {
@@ -38,17 +40,35 @@ class _LoginScreenState extends State<LoginScreen> {
     _accendiMotoreGoogle(); 
   }
 
+  @override
+  void dispose() {
+    _googleAuthSubscription?.cancel();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _accendiMotoreGoogle() async {
     try {
-      await _googleSignIn.initialize(
-        clientId: '499726248211-ufrhid1p5eg6qkifjmu868q7hv5mhmme.apps.googleusercontent.com',
-      );
+      try {
+        await _googleSignIn.initialize(
+          clientId: '499726248211-ufrhid1p5eg6qkifjmu868q7hv5mhmme.apps.googleusercontent.com',
+        );
+      } catch (e) {
+        if (e.toString().contains('init() has already been called')) {
+          // ignore: avoid_print
+          print("🔄 Google già inizializzato nel browser (Hot Reload). Tutto ok!");
+        } else {
+          rethrow;
+        }
+      }
 
       if (kIsWeb) {
         try { await _googleSignIn.signOut(); } catch (_) {}
       }
       
-      _googleSignIn.authenticationEvents.listen((event) {
+      _googleAuthSubscription?.cancel();
+      
+      _googleAuthSubscription = _googleSignIn.authenticationEvents.listen((event) {
         if (event is GoogleSignInAuthenticationEventSignIn) {
           _inviaTokenGoogleAlServer(event.user);
         }
@@ -76,31 +96,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _inviaTokenGoogleAlServer(GoogleSignInAccount googleUser) async {
     setState(() => _isLoading = true);
-    // ignore: avoid_print
-    print("🚀 1. Inizio comunicazione con il server per l'utente: ${googleUser.email}");
-
     try {
-      // RISOLTO: rimosso l'await che dava errore in blu!
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
-      // ignore: avoid_print
-      print("🔑 2. Token generato da Google: ${idToken != null ? 'SI' : 'NO (Token nullo!)'}");
-
       if (idToken != null) {
-        // ignore: avoid_print
-        print("🌍 3. Invio richiesta al backend (localhost:5000)...");
-        
         final response = await http.post(
           Uri.parse('http://localhost:5000/api/auth/google'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'idToken': idToken}),
         );
-
-        // ignore: avoid_print
-        print("📥 4. Risposta del server Node.js: Codice ${response.statusCode}");
-        // ignore: avoid_print
-        print("📄 5. Contenuto risposta: ${response.body}");
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -119,8 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
             await prefs.setStringList('saved_emails_list', _emailSalvate);
           }
 
-          // ignore: avoid_print
-          print("✅ 6. TUTTO OK! Vado alla Dashboard.");
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -129,8 +132,6 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else {
           final errorData = jsonDecode(response.body);
-          // ignore: avoid_print
-          print("❌ ERRORE NODE.JS: ${errorData['errore']}");
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(errorData['errore'] ?? 'Errore dal server'), backgroundColor: Colors.redAccent),
@@ -139,8 +140,6 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (error) {
-      // ignore: avoid_print
-      print("❌ ERRORE DI RETE O CORS: $error");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Errore di connessione al server Node.js'), backgroundColor: Colors.redAccent),
@@ -222,16 +221,15 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginConGoogle() async {
     setState(() => _isLoading = true);
     try {
-      // ignore: unnecessary_nullable_for_final_variable_declarations
-      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+      // FIX LINTER: rimossa la dichiarazione di tipo esplicita
+      final googleUser = await _googleSignIn.authenticate();
+      // ignore: dead_code, unnecessary_null_comparison
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
       await _inviaTokenGoogleAlServer(googleUser);
     } catch (error) {
-      // ignore: avoid_print
-      print("ERRORE GOOGLE MOBILE: $error");
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Errore durante il login con Google'), backgroundColor: Colors.redAccent));
       if (mounted) setState(() => _isLoading = false);
     }
@@ -406,6 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // ECCO IL PEZZO MANCANTE CHE HO RIPRISTINATO!
   @override
   Widget build(BuildContext context) {
     return Scaffold(
