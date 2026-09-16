@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'login_screen.dart';
 import '../widgets/film_list_item.dart';
 import '../widgets/film_grid_item.dart';
+import '../widgets/add_film_modal.dart'; // <-- IMPORTATO IL NUOVO WIDGET!
 import 'recap_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -93,7 +94,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {}
   }
 
-  Future<void> _aggiungiFilm(String titolo) async {
+  // --- FUNZIONE AGGIORNATA PER RICEVERE TITOLO E COPERTINA ---
+  Future<void> _aggiungiFilm(String titolo, String? copertina) async {
     if (titolo.trim().isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -105,7 +107,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'testo': titolo}),
+        body: jsonEncode({
+          'testo': titolo,
+          'copertina': copertina, // Inviamo il link della locandina al server!
+        }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -132,41 +137,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _mostraDialogAggiunta() {
-    final TextEditingController nuovoFilmController = TextEditingController();
-    showDialog(
+  // --- NUOVA MODALE PER LA RICERCA INTELLIGENTE ---
+  void _mostraModaleRicercaIntelligente() {
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF27272A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF27272A),
-          title: const Text('Aggiungi un nuovo film'),
-          content: TextField(
-            controller: nuovoFilmController,
-            decoration: const InputDecoration(hintText: 'Es. Interstellar'),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Annulla',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _aggiungiFilm(nuovoFilmController.text);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
-              child: const Text(
-                'Aggiungi',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+        return AddFilmModal(
+          onFilmSelected: (filmData) {
+            // Quando l'utente clicca un film nella tendina, lo aggiungiamo!
+            _aggiungiFilm(filmData['testo'], filmData['copertina']);
+          },
         );
       },
     );
@@ -258,7 +243,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       itemCount: listaFiltrata.length,
       itemBuilder: (context, index) {
         final film = listaFiltrata[index];
-        // Ora chiamiamo il componente esterno!
         return FilmListItem(
           film: film,
           apiKey: _tmdbApiKey,
@@ -289,7 +273,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       itemCount: listaFiltrata.length,
       itemBuilder: (context, index) {
         final film = listaFiltrata[index];
-        // Ora chiamiamo il componente esterno!
         return FilmGridItem(
           film: film,
           apiKey: _tmdbApiKey,
@@ -422,7 +405,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: _mostraDialogAggiunta,
+          // COLLEGATO QUI: il tasto "+" apre la nuova ricerca TMDB!
+          onPressed: _mostraModaleRicercaIntelligente,
           backgroundColor: Colors.redAccent,
           child: const Icon(Icons.add, color: Colors.white),
         ),
