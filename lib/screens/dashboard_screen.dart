@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'login_screen.dart';
+
 import '../widgets/film_list_item.dart';
 import '../widgets/film_grid_item.dart';
 import '../widgets/add_film_modal.dart';
@@ -23,6 +24,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final String _tmdbApiKey = 'f54f39b5310035478bd10b4d1487458b';
+  
+  // NUOVA VARIABILE: Memorizza il tipo di ordinamento attuale
+  String _ordinamento = 'aggiunta';
 
   @override
   void initState() {
@@ -94,19 +98,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       if (response.statusCode == 200) {
         _fetchFilm();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Titolo aggiornato con successo!'), backgroundColor: Colors.green),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titolo aggiornato!'), backgroundColor: Colors.green));
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Errore durante la modifica'), backgroundColor: Colors.redAccent),
-        );
-      }
-    }
+    } catch (e) {}
   }
 
   Future<void> _aggiungiFilm(String titolo, String? copertina) async {
@@ -121,30 +115,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'testo': titolo,
-          'copertina': copertina,
-        }),
+        body: jsonEncode({'testo': titolo, 'copertina': copertina}),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         _fetchFilm();
         _searchController.clear();
         setState(() => _searchQuery = '');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('"$titolo" aggiunto alla lista!'), backgroundColor: Colors.green),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"$titolo" aggiunto!'), backgroundColor: Colors.green));
       }
     } catch (e) {}
   }
 
   Future<void> _eliminaFilm(int id) async {
-    setState(() {
-      _film.removeWhere((f) => f['id'] == id);
-    });
-
+    setState(() => _film.removeWhere((f) => f['id'] == id));
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token');
@@ -153,20 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         headers: {'Authorization': 'Bearer $token'},
       );
       
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Film eliminato correttamente.'), backgroundColor: Colors.green),
-          );
-        }
-      } else {
-        _fetchFilm();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Impossibile eliminare il film.'), backgroundColor: Colors.redAccent),
-          );
-        }
-      }
+      if (response.statusCode != 200 && response.statusCode != 204) _fetchFilm();
     } catch (e) {
       _fetchFilm();
     }
@@ -178,26 +149,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF27272A),
-          title: const Text('Elimina Film', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: Text(
-            'Sei sicuro di voler eliminare "$titolo" dalla tua lista?\nQuesta azione non può essere annullata.',
-            style: const TextStyle(color: Colors.grey, height: 1.5),
-          ),
+          title: const Text('Elimina Film', style: TextStyle(color: Colors.white)),
+          content: Text('Sicuro di voler eliminare "$titolo"?', style: const TextStyle(color: Colors.grey)),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annulla', style: TextStyle(color: Colors.grey)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 _eliminaFilm(id);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Sì, elimina'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: const Text('Elimina', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -210,45 +172,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF27272A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
-        return AddFilmModal(
-          onFilmSelected: (filmData) {
-            _aggiungiFilm(filmData['testo'], filmData['copertina']);
-          },
-        );
+        return AddFilmModal(onFilmSelected: (filmData) => _aggiungiFilm(filmData['testo'], filmData['copertina']));
       },
     );
   }
 
   void _mostraDialogModifica(int id, String titoloCorrente) {
-    final TextEditingController modificaController = TextEditingController(
-      text: titoloCorrente,
-    );
+    final TextEditingController modificaController = TextEditingController(text: titoloCorrente);
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF27272A),
-          title: const Text('Modifica film', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: TextField(
-            controller: modificaController,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: 'Nuovo titolo',
-              hintStyle: TextStyle(color: Colors.grey),
-              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.redAccent)),
-            ),
-            autofocus: true,
-          ),
+          title: const Text('Modifica film', style: TextStyle(color: Colors.white)),
+          content: TextField(controller: modificaController, style: const TextStyle(color: Colors.white), autofocus: true),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annulla', style: TextStyle(color: Colors.grey)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -266,12 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    }
+    if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
   }
 
   Widget _buildContenutoFilm(List<dynamic> listaFiltrata) {
@@ -281,29 +217,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onRefresh: _fetchFilm,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 150),
-            Center(
-              child: Text(
-                "Nessun film trovato.",
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            ),
-          ],
+          children: const [SizedBox(height: 150), Center(child: Text("Nessun film trovato.", style: TextStyle(fontSize: 18, color: Colors.grey)))],
         ),
       );
     }
-
-    return RefreshIndicator(
-      color: Colors.redAccent,
-      onRefresh: _fetchFilm,
-      child: _isGridView
-          ? _buildGriglia(listaFiltrata)
-          : _buildLista(listaFiltrata),
-    );
+    return RefreshIndicator(color: Colors.redAccent, onRefresh: _fetchFilm, child: _isGridView ? _buildGriglia(listaFiltrata) : _buildLista(listaFiltrata));
   }
 
-  // --- LISTA CON SWIPE TO DELETE (DISMISSIBLE) ---
   Widget _buildLista(List<dynamic> listaFiltrata) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -311,16 +231,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       itemCount: listaFiltrata.length,
       itemBuilder: (context, index) {
         final film = listaFiltrata[index];
-        
         return Dismissible(
           key: Key('film_${film['id']}'),
           direction: DismissDirection.endToStart, 
           background: Container(
             margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.redAccent,
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
             alignment: Alignment.centerRight,
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: const Icon(Icons.delete_sweep, color: Colors.white, size: 32),
@@ -328,41 +244,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
           confirmDismiss: (direction) async {
             return await showDialog<bool>(
               context: context,
-              builder: (context) {
-                return AlertDialog(
-                  backgroundColor: const Color(0xFF27272A),
-                  title: const Text('Elimina Film', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  content: Text(
-                    'Vuoi davvero rimuovere "${film['testo']}"?\nQuesta azione non può essere annullata.',
-                    style: const TextStyle(color: Colors.grey, height: 1.5),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Annulla', style: TextStyle(color: Colors.grey)),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                      child: const Text('Sì, elimina', style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                );
-              },
+              builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF27272A),
+                title: const Text('Elimina', style: TextStyle(color: Colors.white)),
+                content: Text('Vuoi rimuovere "${film['testo']}"?', style: const TextStyle(color: Colors.grey)),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
+                  ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), child: const Text('Elimina')),
+                ],
+              ),
             );
           },
-          onDismissed: (direction) {
-            _eliminaFilm(film['id']);
-          },
+          onDismissed: (direction) => _eliminaFilm(film['id']),
           child: FilmListItem(
             film: film,
             apiKey: _tmdbApiKey,
-            onToggleVisto: () => _toggleVisto(
-              film['id'],
-              film['visto'] != null && film['visto'] != false,
-            ),
+            onToggleVisto: () => _toggleVisto(film['id'], film['visto'] != null && film['visto'] != false),
             onEdit: () => _mostraDialogModifica(film['id'], film['testo'] ?? ''),
-            onDelete: () => _confermaEliminazione(film['id'], film['testo'] ?? 'questo film'),
+            onDelete: () => _confermaEliminazione(film['id'], film['testo'] ?? ''),
           ),
         );
       },
@@ -373,24 +272,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 12, mainAxisSpacing: 12),
       itemCount: listaFiltrata.length,
       itemBuilder: (context, index) {
         final film = listaFiltrata[index];
         return FilmGridItem(
           film: film,
           apiKey: _tmdbApiKey,
-          onToggleVisto: () => _toggleVisto(
-            film['id'],
-            film['visto'] != null && film['visto'] != false,
-          ),
+          onToggleVisto: () => _toggleVisto(film['id'], film['visto'] != null && film['visto'] != false),
           onEdit: () => _mostraDialogModifica(film['id'], film['testo'] ?? ''),
-          onDelete: () => _confermaEliminazione(film['id'], film['testo'] ?? 'questo film'),
+          onDelete: () => _confermaEliminazione(film['id'], film['testo'] ?? ''),
         );
       },
     );
@@ -398,17 +289,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filmFiltratiPerRicerca = _film.where((f) {
-      final titolo = (f['testo'] ?? '').toString().toLowerCase();
-      return titolo.contains(_searchQuery.toLowerCase());
-    }).toList();
+    // 1. Applichiamo la ricerca
+    var filmFiltrati = _film.where((f) => (f['testo'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    
+    // 2. APPLICHIAMO L'ORDINAMENTO SCELTO
+    if (_ordinamento == 'az') {
+      filmFiltrati.sort((a, b) => (a['testo'] ?? '').toString().toLowerCase().compareTo((b['testo'] ?? '').toString().toLowerCase()));
+    } else if (_ordinamento == 'za') {
+      filmFiltrati.sort((a, b) => (b['testo'] ?? '').toString().toLowerCase().compareTo((a['testo'] ?? '').toString().toLowerCase()));
+    } else {
+      // Ordine di aggiunta (dal più recente al più vecchio basandosi sull'ID del DB)
+      filmFiltrati.sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+    }
 
-    final filmDaVedere = filmFiltratiPerRicerca
-        .where((f) => f['visto'] == null || f['visto'] == false)
-        .toList();
-    final filmVisti = filmFiltratiPerRicerca
-        .where((f) => f['visto'] != null && f['visto'] != false)
-        .toList();
+    // 3. Dividiamo le liste per i Tab
+    final filmDaVedere = filmFiltrati.where((f) => f['visto'] == null || f['visto'] == false).toList();
+    final filmVisti = filmFiltrati.where((f) => f['visto'] != null && f['visto'] != false).toList();
 
     return DefaultTabController(
       length: 3,
@@ -419,29 +315,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           actions: [
             IconButton(
               icon: const Icon(Icons.pie_chart, color: Colors.blueAccent),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RecapScreen(filmList: _film),
-                ),
-              ),
-              tooltip: 'Statistiche',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => RecapScreen(filmList: _film))),
             ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent),
-              onPressed: _logout,
-              tooltip: 'Esci',
-            ),
+            IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: _logout),
           ],
           bottom: const TabBar(
             indicatorColor: Colors.redAccent,
             labelColor: Colors.redAccent,
             unselectedLabelColor: Colors.grey,
-            tabs: [
-              Tab(text: 'Tutti'),
-              Tab(text: 'Da Vedere'),
-              Tab(text: 'Visti'),
-            ],
+            tabs: [Tab(text: 'Tutti'), Tab(text: 'Da Vedere'), Tab(text: 'Visti')],
           ),
         ),
         body: Column(
@@ -450,61 +332,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
+                  // BARRA DI RICERCA
                   Expanded(
                     child: TextField(
                       controller: _searchController,
                       style: const TextStyle(color: Colors.white),
                       onChanged: (value) => setState(() => _searchQuery = value),
                       decoration: InputDecoration(
-                        hintText: 'Cerca tra i tuoi film...',
+                        hintText: 'Cerca...',
                         hintStyle: const TextStyle(color: Colors.grey),
                         prefixIcon: const Icon(Icons.search, color: Colors.redAccent),
                         filled: true,
                         fillColor: const Color(0xFF27272A),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, color: Colors.grey),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              )
-                            : null,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        suffixIcon: _searchQuery.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: Colors.grey), onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); }) : null,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
+                  
+                  // MENU A TENDINA PER L'ORDINAMENTO
                   Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF27272A),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        _isGridView ? Icons.view_list : Icons.grid_view,
-                        color: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(12)),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _ordinamento,
+                        dropdownColor: const Color(0xFF27272A),
+                        icon: const Icon(Icons.sort, color: Colors.white),
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() => _ordinamento = newValue);
+                          }
+                        },
+                        items: const [
+                          DropdownMenuItem(value: 'aggiunta', child: Text(' Recenti')),
+                          DropdownMenuItem(value: 'az', child: Text(' A - Z')),
+                          DropdownMenuItem(value: 'za', child: Text(' Z - A')),
+                        ],
                       ),
-                      onPressed: () => setState(() => _isGridView = !_isGridView),
-                      tooltip: _isGridView ? 'Passa alla Lista' : 'Passa alla Griglia',
                     ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // TASTO LISTA/GRIGLIA
+                  Container(
+                    decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(12)),
+                    child: IconButton(icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: Colors.white), onPressed: () => setState(() => _isGridView = !_isGridView)),
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
-                  : TabBarView(
-                      children: [
-                        _buildContenutoFilm(filmFiltratiPerRicerca),
-                        _buildContenutoFilm(filmDaVedere),
-                        _buildContenutoFilm(filmVisti),
-                      ],
-                    ),
+              child: _isLoading ? const Center(child: CircularProgressIndicator(color: Colors.redAccent)) : TabBarView(children: [_buildContenutoFilm(filmFiltrati), _buildContenutoFilm(filmDaVedere), _buildContenutoFilm(filmVisti)]),
             ),
           ],
         ),
