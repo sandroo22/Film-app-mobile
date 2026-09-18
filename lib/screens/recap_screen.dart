@@ -7,21 +7,25 @@ class RecapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calcoliamo le statistiche
-    final totaleFilm = filmList.length;
-    final filmVisti = filmList.where((f) => f['visto'] != null && f['visto'] != false).toList();
-    final numeroVisti = filmVisti.length;
+    // 1. Calcoli per le statistiche principali
+    final int totaleFilm = filmList.length;
+    final int visti = filmList.where((f) => f['visto'] != null && f['visto'] != false).length;
+    final int daVedere = totaleFilm - visti;
     
-    // Stima: calcoliamo circa 2 ore (120 minuti) per ogni film visto
-    final oreTotali = numeroVisti * 2; 
+    // 2. Calcolo Tempo Speso (Formattato in Ore e Minuti come su React)
+    final int minutiTotali = visti * 120;
+    final int oreSpese = minutiTotali ~/ 60;
+    final int minutiSpesi = minutiTotali % 60;
 
-    // Prendiamo gli ultimi 5 film aggiunti (invertiamo la lista per avere i più recenti in cima)
+    // 3. Ultimi 5 film aggiunti (in ordine cronologico inverso)
     final ultimiAggiunti = filmList.reversed.take(5).toList();
 
     return Scaffold(
+      backgroundColor: const Color(0xFF18181B),
       appBar: AppBar(
-        title: const Text('Le mie Statistiche'),
+        title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF27272A),
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -29,52 +33,58 @@ class RecapScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Il tuo Recap",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+              "Benvenuto nella tua Dashboard",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
             ),
             const SizedBox(height: 24),
 
-            // GRIGLIA DELLE STATISTICHE
-            Row(
+            // GRIGLIA 2x2 PER LE STATISTICHE
+            GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 1.2,
               children: [
-                Expanded(
-                  child: _buildStatCard(
-                    titolo: "Film Visti",
-                    valore: "$numeroVisti",
-                    icona: Icons.remove_red_eye,
-                    colore: Colors.green,
-                  ),
+                _buildStatCard(
+                  titolo: "Totale Film",
+                  valore: "$totaleFilm",
+                  icona: Icons.movie_filter,
+                  colore: Colors.blueAccent,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    titolo: "Ore Spese",
-                    valore: "$oreTotali h",
-                    icona: Icons.access_time_filled,
-                    colore: Colors.blueAccent,
-                  ),
+                _buildStatCard(
+                  titolo: "Già Visti",
+                  valore: "$visti",
+                  icona: Icons.check_circle,
+                  colore: Colors.green,
+                ),
+                _buildStatCard(
+                  titolo: "Da Vedere",
+                  valore: "$daVedere",
+                  icona: Icons.watch_later,
+                  colore: Colors.orangeAccent,
+                ),
+                _buildStatCard(
+                  titolo: "Tempo Speso",
+                  valore: "${oreSpese}h ${minutiSpesi}m",
+                  icona: Icons.timer,
+                  colore: Colors.purpleAccent,
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            _buildStatCard(
-              titolo: "Film totali in libreria",
-              valore: "$totaleFilm",
-              icona: Icons.local_movies,
-              colore: Colors.redAccent,
             ),
             
             const SizedBox(height: 40),
 
-            // SEZIONE ULTIMI AGGIUNTI
+            // SEZIONE ULTIMI AGGIUNTI (Ora con le locandine)
             const Text(
-              "Ultimi 5 film aggiunti",
+              "Ultimi aggiunti",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
             ),
             const SizedBox(height: 16),
             
             if (ultimiAggiunti.isEmpty)
-              const Text("Non hai ancora aggiunto film.", style: TextStyle(color: Colors.grey))
+              const Text("Nessun film presente.", style: TextStyle(color: Colors.grey))
             else
               ListView.builder(
                 shrinkWrap: true,
@@ -87,15 +97,26 @@ class RecapScreen extends StatelessWidget {
                   return Card(
                     color: const Color(0xFF27272A),
                     margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Colors.redAccent,
-                        child: Icon(Icons.movie, color: Colors.white, size: 20),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      // Mini-locandina allineata al lato sinistro
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: film['copertina'] != null
+                            ? Image.network(
+                                film['copertina'], 
+                                width: 45, 
+                                height: 65, 
+                                fit: BoxFit.cover, 
+                                errorBuilder: (c, e, s) => Container(width: 45, color: Colors.grey[800], child: const Icon(Icons.movie, color: Colors.white54))
+                              )
+                            : Container(width: 45, color: Colors.grey[800], child: const Icon(Icons.movie, color: Colors.white54)),
                       ),
-                      title: Text(film['testo'] ?? 'Senza titolo', style: const TextStyle(color: Colors.white)),
+                      title: Text(film['testo'] ?? 'Senza titolo', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                       subtitle: Text(
                         isVisto ? 'Già visto' : 'Da vedere',
-                        style: TextStyle(color: isVisto ? Colors.green : Colors.orange),
+                        style: TextStyle(color: isVisto ? Colors.green : Colors.orangeAccent),
                       ),
                     ),
                   );
@@ -107,7 +128,7 @@ class RecapScreen extends StatelessWidget {
     );
   }
 
-  // Widget riutilizzabile per le Card delle statistiche
+  // WIDGET CARD RIUTILIZZABILE (Design aggiornato)
   Widget _buildStatCard({required String titolo, required String valore, required IconData icona, required Color colore}) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -116,13 +137,18 @@ class RecapScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         // ignore: deprecated_member_use
         border: Border.all(color: colore.withOpacity(0.3), width: 2),
+        boxShadow: [
+          // ignore: deprecated_member_use
+          BoxShadow(color: colore.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icona, color: colore, size: 32),
-          const SizedBox(height: 12),
-          Text(valore, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+          Icon(icona, color: colore, size: 30),
+          const Spacer(),
+          Text(valore, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 4),
           Text(titolo, style: const TextStyle(fontSize: 14, color: Colors.grey)),
         ],
