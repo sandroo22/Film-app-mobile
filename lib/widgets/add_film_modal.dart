@@ -4,9 +4,16 @@ import 'dart:convert';
 import 'dart:async';
 
 class AddFilmModal extends StatefulWidget {
-  final Function(Map<String, dynamic> filmData) onFilmSelected;
+  final List<String> cartelle;
+  final String cartellaAttuale;
+  final Function(Map<String, dynamic> filmData, String cartellaSelezionata) onFilmSelected;
 
-  const AddFilmModal({super.key, required this.onFilmSelected});
+  const AddFilmModal({
+    super.key, 
+    required this.cartelle, 
+    required this.cartellaAttuale, 
+    required this.onFilmSelected,
+  });
 
   @override
   State<AddFilmModal> createState() => _AddFilmModalState();
@@ -17,8 +24,16 @@ class _AddFilmModalState extends State<AddFilmModal> {
   List<dynamic> _risultati = [];
   bool _isSearching = false;
   Timer? _debounce;
-
   final String _tmdbApiKey = 'f54f39b5310035478bd10b4d1487458b';
+  
+  late String _cartellaScelta;
+
+  @override
+  void initState() {
+    super.initState();
+    // Seleziona di default la cartella in cui ti trovi, altrimenti "Tutti"
+    _cartellaScelta = widget.cartelle.contains(widget.cartellaAttuale) ? widget.cartellaAttuale : 'Tutti';
+  }
 
   @override
   void dispose() {
@@ -29,32 +44,19 @@ class _AddFilmModalState extends State<AddFilmModal> {
 
   void _cercaFilm(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-
     if (query.isEmpty) {
-      setState(() {
-        _risultati = [];
-        _isSearching = false;
-      });
+      setState(() { _risultati = []; _isSearching = false; });
       return;
     }
-
     _debounce = Timer(const Duration(milliseconds: 500), () async {
       setState(() => _isSearching = true);
       try {
-        final url = Uri.parse(
-          'https://api.themoviedb.org/3/search/movie?api_key=$_tmdbApiKey&query=${Uri.encodeComponent(query)}&language=it-IT',
-        );
+        final url = Uri.parse('https://api.themoviedb.org/3/search/movie?api_key=$_tmdbApiKey&query=${Uri.encodeComponent(query)}&language=it-IT');
         final response = await http.get(url);
-
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          setState(() {
-            _risultati = data['results'] ?? [];
-          });
+          setState(() => _risultati = jsonDecode(response.body)['results'] ?? []);
         }
       } catch (e) {
-        // ignore: avoid_print
-        print("Errore ricerca TMDB: $e");
       } finally {
         if (mounted) setState(() => _isSearching = false);
       }
@@ -64,24 +66,41 @@ class _AddFilmModalState extends State<AddFilmModal> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Creiamo le opzioni del Dropdown (aggiungendo 'Tutti' all'inizio)
+    List<String> opzioniCartelle = ['Tutti', ...widget.cartelle];
 
     return Container(
-      height: screenHeight * 0.7, 
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 16,
-        right: 16,
-        top: 24,
-      ),
+      height: screenHeight * 0.75, 
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16, right: 16, top: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            "Aggiungi un nuovo film",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+          const Text("Aggiungi un nuovo film", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
+          
+          // NUOVO SELETTORE CARTELLA
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _cartellaScelta,
+                dropdownColor: const Color(0xFF27272A),
+                icon: const Icon(Icons.folder, color: Colors.grey),
+                isExpanded: true,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                onChanged: (String? newValue) {
+                  if (newValue != null) setState(() => _cartellaScelta = newValue);
+                },
+                items: opzioniCartelle.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(value: value, child: Text(value == 'Tutti' ? 'Aggiungi a: Tutti i film' : 'Aggiungi a: $value'));
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           TextField(
             controller: _searchController,
             onChanged: _cercaFilm,
@@ -93,19 +112,8 @@ class _AddFilmModalState extends State<AddFilmModal> {
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
               fillColor: Colors.black26,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
-                      onPressed: () {
-                        _searchController.clear();
-                        _cercaFilm('');
-                      },
-                    )
-                  : null,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: Colors.grey), onPressed: () { _searchController.clear(); _cercaFilm(''); }) : null,
             ),
           ),
           const SizedBox(height: 16),
@@ -113,49 +121,25 @@ class _AddFilmModalState extends State<AddFilmModal> {
             child: _isSearching
                 ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
                 : _risultati.isEmpty
-                    ? Center(
-                        child: Text(
-                          _searchController.text.isEmpty
-                              ? "Digita il titolo di un film per iniziare"
-                              : "Nessun film trovato",
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      )
+                    ? Center(child: Text(_searchController.text.isEmpty ? "Digita il titolo per iniziare" : "Nessun film trovato", style: const TextStyle(color: Colors.grey)))
                     : ListView.builder(
                         itemCount: _risultati.length,
                         itemBuilder: (context, index) {
                           final film = _risultati[index];
                           final posterPath = film['poster_path'];
-                          final anno = film['release_date'] != null && film['release_date'].toString().length >= 4
-                              ? film['release_date'].toString().substring(0, 4)
-                              : 'Anno sconosciuto';
+                          final anno = film['release_date'] != null && film['release_date'].toString().length >= 4 ? film['release_date'].toString().substring(0, 4) : 'Anno sconosciuto';
 
                           return Card(
                             color: const Color(0xFF27272A),
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: posterPath != null
-                                    ? Image.network(
-                                        'https://image.tmdb.org/t/p/w92$posterPath',
-                                        width: 50,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Container(
-                                        width: 50,
-                                        color: Colors.grey[800],
-                                        child: const Icon(Icons.movie, color: Colors.white54),
-                                      ),
-                              ),
+                              leading: ClipRRect(borderRadius: BorderRadius.circular(4), child: posterPath != null ? Image.network('https://image.tmdb.org/t/p/w92$posterPath', width: 50, fit: BoxFit.cover) : Container(width: 50, color: Colors.grey[800], child: const Icon(Icons.movie, color: Colors.white54))),
                               title: Text(film['title'] ?? 'Senza titolo', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                               subtitle: Text(anno, style: const TextStyle(color: Colors.grey)),
                               onTap: () {
-                                final filmScelto = {
-                                  'testo': film['title'],
-                                  'copertina': posterPath != null ? 'https://image.tmdb.org/t/p/w500$posterPath' : null,
-                                };
-                                widget.onFilmSelected(filmScelto);
+                                final filmScelto = {'testo': film['title'], 'copertina': posterPath != null ? 'https://image.tmdb.org/t/p/w500$posterPath' : null};
+                                // Passiamo non solo il film, ma anche la cartella scelta!
+                                widget.onFilmSelected(filmScelto, _cartellaScelta);
                                 Navigator.pop(context);
                               },
                             ),
